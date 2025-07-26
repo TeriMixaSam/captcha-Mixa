@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Custom CAPTCHA by MixaSam</title>
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: #f0f0f0;
+      font-family: Arial, sans-serif;
+    }
+    .captcha-box {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      text-align: center;
+      box-shadow: 0 0 15px rgba(0,0,0,0.2);
+    }
+    input {
+      padding: 10px;
+      font-size: 16px;
+      width: 200px;
+      margin-top: 10px;
+    }
+    button {
+      margin-top: 15px;
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: green;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+	<div id="timer" style="
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 24px;
+  font-family: monospace;
+  font-weight: bold;
+">
+  Time: 0s
+</div>
+
+  <div class="captcha-box">
+    <div id="stage1">
+      <div id="question1">Loading...</div>
+      <input type="text" id="input1" placeholder="Answer (Ex: 222)" />
+      <br />
+      <button onclick="checkStage1()">Submit</button>
+    </div>
+
+    <div id="stage2" class="hidden">
+      <div id="question2">Loading...</div>
+      <input type="text" id="input2" placeholder="Answer (Ex: 120x^3)" />
+      <br />
+      <button onclick="checkStage2()">Submit</button>
+    </div>
+  </div>
+
+  <script>
+    let correct1 = 0;
+    let correct2 = "";
+	    // Optional: Timer logic (countdown per stage)
+    let timerSeconds = 0;
+	let timerInterval = null;
+
+    function randomInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function randomVarCombo() {
+      const letters = ['x', 'y', 'z'];
+      const count = randomInt(1, 3);
+      let result = '';
+      for (let i = 0; i < count; i++) {
+        result += letters[randomInt(0, letters.length - 1)];
+      }
+      return result.split('').sort().join('');
+    }
+
+    function combineVars(varsA, varsB) {
+      let all = varsA + varsB;
+      let freq = {};
+      for (let char of all) {
+        freq[char] = (freq[char] || 0) + 1;
+      }
+      let final = '';
+      Object.keys(freq).sort().forEach(ch => {
+        final += ch + (freq[ch] > 1 ? '^' + freq[ch] : '');
+      });
+      return final;
+    }
+
+    function resetStage1() {
+	startTimer(); // add this
+  const a = randomInt(10, 99);
+  const b = randomInt(10, 99);
+  const ops = ["+", "-", "*", "/"];
+  const op = ops[randomInt(0, ops.length - 1)];
+
+  let result = 0;
+  let displayResult = "";
+
+  switch (op) {
+    case "+":
+      result = a + b;
+      displayResult = result;
+      break;
+    case "-":
+      result = a - b;
+      displayResult = result;
+      break;
+    case "*":
+      result = a * b;
+      displayResult = result;
+      break;
+    case "/":
+      result = parseFloat((a / b).toFixed(4));
+      displayResult = result;
+      break;
+  }
+
+  correct1 = result;
+  document.getElementById("question1").textContent = `Solve: ${a} ${op} ${b}`;
+  const input1 = document.getElementById("input1");
+  input1.value = "";
+  input1.placeholder = (op === "/") ? "Answer (Ex: 12.3456)" : "Answer (Ex: 123)";
+}
+
+    function resetStage2() {
+      const varA = randomVarCombo(); // like "xx" or "xz"
+      const varB = randomVarCombo(); // like "z" or "yy"
+      const a = randomInt(10, 999);
+      const b = randomInt(10, 999);
+      const varsCombined = combineVars(varA, varB);
+
+      correct2 = `${a * b}${varsCombined}`;
+      document.getElementById("question2").textContent = `Solve: ${a}${varA} * ${b}${varB}`;
+      document.getElementById("input2").value = "";
+    }
+
+    function checkStage1() {
+  const userVal = document.getElementById("input1").value.trim();
+  const expected = correct1;
+
+  if (isNaN(userVal)) {
+    alert("❌ Not a number!");
+    resetStage1();
+    return;
+  }
+
+  const userNum = parseFloat(userVal);
+
+  if (expected % 1 === 0) {
+    // Integer check
+    if (userNum === expected) {
+      document.getElementById("stage1").classList.add("hidden");
+      document.getElementById("stage2").classList.remove("hidden");
+      resetStage2();
+    } else {
+      alert("❌ Wrong. CAPTCHA reset.");
+      resetStage1();
+    }
+  } else {
+    // Decimal: must match to 4 digits
+    if (userVal.includes('.') && parseFloat(userVal).toFixed(4) === expected.toFixed(4)) {
+      document.getElementById("stage1").classList.add("hidden");
+      document.getElementById("stage2").classList.remove("hidden");
+      resetStage2();
+    } else {
+      alert("❌ Wrong. Make sure to use 4 digits after decimal.");
+      resetStage1();
+    }
+  }
+}
+
+
+    function checkStage2() {
+      const user = document.getElementById("input2").value.trim().replace(/\s+/g, '').toLowerCase();
+      const correct = correct2.toLowerCase();
+      if (normalizeAnswer(user) === normalizeAnswer(correct)) {
+        alert("✅ Success! CAPTCHA passed.");
+        document.getElementById("stage2").classList.add("hidden");
+        document.getElementById("stage1").classList.remove("hidden");
+        resetStage1();
+      } else {
+        alert("❌ Wrong. CAPTCHA reset.");
+        resetStage2();
+      }
+    }
+
+    resetStage1();
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        alert("🚫 You cheated by switching tabs! CAPTCHA reset.");
+        document.getElementById("stage2").classList.add("hidden");
+        document.getElementById("stage1").classList.remove("hidden");
+        resetStage1();
+      }
+    });
+	
+function normalizeAnswer(str) {
+  const parts = str
+    .match(/[a-z]+|\d+/gi) || []
+    .map(part => part.trim())
+    .sort(); // Ensures variable order doesn't matter
+
+  return parts.join("");
+}
+
+
+function startTimer() {
+  timerSeconds = 0;
+  document.getElementById("timer").textContent = "Time: 0s";
+
+  if (timerInterval) clearInterval(timerInterval);
+
+  timerInterval = setInterval(() => {
+    timerSeconds++;
+    document.getElementById("timer").textContent = `Time: ${timerSeconds}s`;
+  }, 1000);
+}
+
+// Call this once when the page loads:
+startTimer();
+  </script>
+
+</body>
+</html>
